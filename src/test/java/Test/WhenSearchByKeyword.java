@@ -27,6 +27,7 @@ class WhenSearchByKeyword {
         );
 
     }
+
     //my code
     @Test
     public void test(){
@@ -40,6 +41,9 @@ class WhenSearchByKeyword {
     public void test3(){
         System.out.println("Test method 3");
     }
-
+    @Test
+    public void test4(){
+        System.out.println("Test method 4");
+    }
 
 }
