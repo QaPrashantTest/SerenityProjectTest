@@ -27,4 +27,18 @@ class WhenSearchByKeyword {
         );
 
     }
+    //my code
+    @Test
+    public void test(){
+        System.out.println("Test method 1");
+    }
+    @Test
+    public void test2(){
+        System.out.println("Test method 2");
+    }
+    @Test
+    public void test3(){
+        System.out.println("Test method 3");
+    }
+
 }
