@@ -105,12 +105,13 @@ jobs:
 
             function analyzeFailures(failures) {
               const commonPatterns = [
-                { pattern: /(timeout|time.?out|wait)/i, title: "⏰ Timeout Issues", solution: "Increase timeout values or use explicit waits for dynamic elements", code: "// Example: actor.attemptsTo(WaitUntil.the(Element, isVisible()).forNoMoreThan(30).seconds());" },
+                { pattern: /cannot find Chrome binary/i, title: "🤷‍ Missing Chrome Installation", solution: "The test environment is missing the Google Chrome browser. Please ensure it is installed in the CI environment.", code: "# Example for ubuntu-latest in GitHub Actions:\n# - name: Install Google Chrome\n#   run: |\n#     sudo apt-get update\n#     sudo apt-get install -y google-chrome-stable" },
                 { pattern: /(element.?not.?found|no such element|unable to locate)/i, title: "🔍 Element Not Found", solution: "Verify locators are correct and add proper waits for dynamic content", code: "// Example: Ensure element is visible before interaction\n// actor.attemptsTo(WaitUntil.the(TargetElement, isVisible()));" },
+                { pattern: /(stale element|StaleElementReference)/i, title: "🔄 Stale Element Reference", solution: "Re-locate elements after page interactions or DOM changes", code: "// Example: Re-find element after page refresh\n// TargetElement.resolveFor(actor);" },
                 { pattern: /(null.?pointer|NullPointerException)/i, title: "💥 Null Pointer Exception", solution: "Check for null values and add proper null checks in test steps", code: "// Example: Add null checks before accessing objects\n// if (object != null) { ... }" },
                 { pattern: /(assertion|expected.*but.*was|AssertionError)/i, title: "❌ Assertion Failures", solution: "Compare expected vs actual values and verify test data setup", code: "// Example: Log actual values for debugging\n// System.out.println(\"Actual value: \" + actualValue);" },
-                { pattern: /(stale element|StaleElementReference)/i, title: "🔄 Stale Element Reference", solution: "Re-locate elements after page interactions or DOM changes", code: "// Example: Re-find element after page refresh\n// TargetElement.resolveFor(actor);" },
-                { pattern: /(connection|network|timeout.*connect)/i, title: "🌐 Network/Connection Issues", solution: "Check network connectivity and increase connection timeouts", code: "// Example: Add retry mechanism for flaky network calls" }
+                { pattern: /(connection|network|timeout.*connect)/i, title: "🌐 Network/Connection Issues", solution: "Check network connectivity and increase connection timeouts", code: "// Example: Add retry mechanism for flaky network calls" },
+                { pattern: /(timeout|time.?out|wait)/i, title: "⏰ Timeout Issues", solution: "Increase timeout values or use explicit waits for dynamic elements", code: "// Example: actor.attemptsTo(WaitUntil.the(Element, isVisible()).forNoMoreThan(30).seconds());" }
               ];
               let analysis = "## 🎯 ROOT CAUSE ANALYSIS\n\n";
               let solutions = "## 💡 SOLUTIONS\n\n";
