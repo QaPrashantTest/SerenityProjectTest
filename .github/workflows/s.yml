@@ -1,5 +1,4 @@
-name: Serenity BDD Tests
-
+name: Serenity BDD Tests with Free AI RCA
 on:
   push:
     branches: [ main ]
@@ -21,6 +20,12 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
 
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@latest
+
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+
     - name: Cache Maven Dependencies
       uses: actions/cache@v3
       with:
@@ -32,6 +37,7 @@ jobs:
     - name: Run Serenity Tests
       run: |
         mvn clean verify -DskipTests=false -Dserenity.report.urls=github
+      continue-on-error: true
 
     - name: Upload Serenity Reports
       uses: actions/upload-artifact@v4
@@ -48,3 +54,91 @@ jobs:
         name: test-results
         path: target/surefire-reports/
         retention-days: 30
+
+    - name: Check Test Results
+      id: test-result
+      run: |
+        if [ -d "target/failsafe-reports" ]; then
+          FAILURES=$(find target/failsafe-reports -name "*.xml" -exec grep -l "failure\|error" {} \; 2>/dev/null | wc -l)
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "test_failed=true" >> $GITHUB_OUTPUT
+          else
+            echo "test_failed=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "test_failed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: AI Root Cause Analysis (Pattern-Based)
+      if: steps.test-result.outputs.test_failed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Function to extract failure details
+          function extractFailureDetails() {
+            let failures = [];
+            try {
+              const reportsDir = 'target/failsafe-reports';
+              if (!fs.existsSync(reportsDir)) return failures;
+              
+              const xmlFiles = fs.readdirSync(reportsDir).filter(file => file.endsWith('.xml'));
+              
+              for (const file of xmlFiles) {
+                const content = fs.readFileSync(path.join(reportsDir, file), 'utf8');
+                
+                // Extract test case failures
+                const failureMatches = content.match(/<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*>[\s\S]*?<failure[^>]*>([\s\S]*?)<\/failure>/g);
+                if (failureMatches) {
+                  for (const match of failureMatches) {
+                    const testName = match.match(/name="([^"]*)"/)[1];
+                    const className = match.match(/classname="([^"]*)"/)[1];
+                    const failureMessage = match.match(/<failure[^>]*>([\s\S]*?)<\/failure>/)[1];
+                    
+                    failures.push({
+                      testName: testName,
+                      className: className,
+                      message: failureMessage.substring(0, 500),
+                      file: file
+                    });
+                  }
+                }
+                
+                // Extract test case errors
+                const errorMatches = content.match(/<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*>[\s\S]*?<error[^>]*>([\s\S]*?)<\/error>/g);
+                if (errorMatches) {
+                  for (const match of errorMatches) {
+                    const testName = match.match(/name="([^"]*)"/)[1];
+                    const className = match.match(/classname="([^"]*)"/)[1];
+                    const errorMessage = match.match(/<error[^>]*>([\s\S]*?)<\/error>/)[1];
+                    
+                    failures.push({
+                      testName: testName,
+                      className: className,
+                      message: errorMessage.substring(0, 500),
+                      file: file
+                    });
+                  }
+                }
+              }
+            } catch (error) {
+              console.log("Error extracting failures:", error.message);
+            }
+            return failures;
+          }
+          
+          // Pattern-based analysis engine
+          function analyzeFailures(failures) {
+            const commonPatterns = [
+              {
+                pattern: /(timeout|time.?out|wait)/i,
+                title: "⏰ Timeout Issues",
+                solution: "Increase timeout values or use explicit waits for dynamic elements",
+                code: "// Example: actor.attemptsTo(WaitUntil.the(Element, isVisible()).forNoMoreThan(30).seconds());"
+              },
+              {
+                pattern: /(element.?not.?found|no such element|unable to locate)/i,
+                title: "🔍 Element Not Found",
+                solution: "Verify locators are
