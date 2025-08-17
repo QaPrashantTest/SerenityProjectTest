@@ -1,0 +1,299 @@
+name: New AI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@latest
+
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+
+    - name: Cache Maven Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    - name: Run Serenity Tests
+      run: |
+        mvn clean verify -DskipTests=false -Dserenity.report.urls=github
+      continue-on-error: true
+
+    - name: Upload Serenity Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: serenity-reports
+        path: target/site/serenity/
+        retention-days: 30
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: target/surefire-reports/
+        retention-days: 30
+
+    - name: Check Test Results
+      id: test-result
+      run: |
+        if [ -d "target/failsafe-reports" ]; then
+          FAILURES=$(find target/failsafe-reports -name "*.xml" -exec grep -l "failure\|error" {} \; 2>/dev/null | wc -l)
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "test_failed=true" >> $GITHUB_OUTPUT
+          else
+            echo "test_failed=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "test_failed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: AI Root Cause Analysis
+      if: steps.test-result.outputs.test_failed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          function extractFailureDetails() {
+            let failures = [];
+            try {
+              const reportsDir = 'target/failsafe-reports';
+              if (!fs.existsSync(reportsDir)) return failures;
+              
+              const xmlFiles = fs.readdirSync(reportsDir).filter(file => file.endsWith('.xml'));
+              
+              for (const file of xmlFiles) {
+                const content = fs.readFileSync(path.join(reportsDir, file), 'utf8');
+                
+                const failureMatches = content.match(/<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*>[\s\S]*?<failure[^>]*>([\s\S]*?)<\/failure>/g);
+                if (failureMatches) {
+                  for (const match of failureMatches) {
+                    const testName = match.match(/name="([^"]*)"/)[1];
+                    const className = match.match(/classname="([^"]*)"/)[1];
+                    const failureMessage = match.match(/<failure[^>]*>([\s\S]*?)<\/failure>/)[1];
+                    
+                    failures.push({
+                      testName: testName,
+                      className: className,
+                      message: failureMessage.substring(0, 500),
+                      file: file
+                    });
+                  }
+                }
+                
+                const errorMatches = content.match(/<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*>[\s\S]*?<error[^>]*>([\s\S]*?)<\/error>/g);
+                if (errorMatches) {
+                  for (const match of errorMatches) {
+                    const testName = match.match(/name="([^"]*)"/)[1];
+                    const className = match.match(/classname="([^"]*)"/)[1];
+                    const errorMessage = match.match(/<error[^>]*>([\s\S]*?)<\/error>/)[1];
+                    
+                    failures.push({
+                      testName: testName,
+                      className: className,
+                      message: errorMessage.substring(0, 500),
+                      file: file
+                    });
+                  }
+                }
+              }
+            } catch (error) {
+              console.log("Error extracting failures:", error.message);
+            }
+            return failures;
+          }
+          
+          function analyzeFailures(failures) {
+            const commonPatterns = [
+              {
+                pattern: /(timeout|time.?out|wait)/i,
+                title: "⏰ Timeout Issues",
+                solution: "Increase timeout values or use explicit waits for dynamic elements",
+                code: "// Example: actor.attemptsTo(WaitUntil.the(Element, isVisible()).forNoMoreThan(30).seconds());"
+              },
+              {
+                pattern: /(element.?not.?found|no such element|unable to locate)/i,
+                title: "🔍 Element Not Found",
+                solution: "Verify locators are correct and add proper waits for dynamic content",
+                code: "// Example: Ensure element is visible before interaction\n// actor.attemptsTo(WaitUntil.the(TargetElement, isVisible()));"
+              },
+              {
+                pattern: /(null.?pointer|NullPointerException)/i,
+                title: "💥 Null Pointer Exception",
+                solution: "Check for null values and add proper null checks in test steps",
+                code: "// Example: Add null checks before accessing objects\n// if (object != null) { ... }"
+              },
+              {
+                pattern: /(assertion|expected.*but.*was|AssertionError)/i,
+                title: "❌ Assertion Failures",
+                solution: "Compare expected vs actual values and verify test data setup",
+                code: "// Example: Log actual values for debugging\n// System.out.println(\"Actual value: \" + actualValue);"
+              },
+              {
+                pattern: /(stale element|StaleElementReference)/i,
+                title: "🔄 Stale Element Reference",
+                solution: "Re-locate elements after page interactions or DOM changes",
+                code: "// Example: Re-find element after page refresh\n// TargetElement.resolveFor(actor);"
+              },
+              {
+                pattern: /(connection|network|timeout.*connect)/i,
+                title: "🌐 Network/Connection Issues",
+                solution: "Check network connectivity and increase connection timeouts",
+                code: "// Example: Add retry mechanism for flaky network calls"
+              }
+            ];
+            
+            let analysis = "## 🎯 ROOT CAUSE ANALYSIS\n\n";
+            let solutions = "## 💡 SOLUTIONS\n\n";
+            let prevention = "## 🔒 PREVENTION TIPS\n\n";
+            
+            if (failures.length === 0) {
+              analysis += "No detailed failure information found. Check test logs manually.\n\n";
+              solutions += "1. Review recent code changes\n2. Check test environment setup\n3. Verify test data\n\n";
+              prevention += "• Implement proper logging in tests\n• Use explicit waits instead of Thread.sleep()\n• Add retry mechanisms for flaky tests\n";
+            } else {
+              failures.forEach((failure, index) => {
+                analysis += `### Failure ${index + 1}: ${failure.testName}\n`;
+                analysis += `- **Class**: ${failure.className}\n`;
+                analysis += `- **Error**: ${failure.message}\n\n`;
+                
+                let matched = false;
+                for (const pattern of commonPatterns) {
+                  if (pattern.pattern.test(failure.message)) {
+                    solutions += `### ${pattern.title}\n`;
+                    solutions += `- **Fix**: ${pattern.solution}\n`;
+                    solutions += "```java\n" + pattern.code + "\n```\n\n";
+                    matched = true;
+                    break;
+                  }
+                }
+                
+                if (!matched) {
+                  solutions += `### Generic Issue\n`;
+                  solutions += `- **Fix**: Review test logic and data setup\n`;
+                  solutions += "- Check recent code changes that might affect this test\n\n";
+                }
+              });
+              
+              prevention += "• Use explicit waits instead of implicit waits\n";
+              prevention += "• Implement proper error handling in test steps\n";
+              prevention += "• Add logging for debugging failed tests\n";
+              prevention += "• Use Page Object Model for better maintainability\n";
+              prevention += "• Regularly update test data and environment setup\n";
+            }
+            
+            return analysis + solutions + prevention;
+          }
+          
+          function generateEnhancedAnalysis(failures) {
+            const intro = `# 🤖 FREE AI TEST FAILURE ANALYSIS\n\n`;
+            const disclaimer = "> **Note**: This is pattern-based analysis (not using paid AI services)\n\n";
+            
+            const commonIssues = `## 🔍 COMMON SERENITY BDD ISSUES\n\n`;
+            const issuesList = `1. **WebDriver Issues**
+   - Ensure Chrome/Chromium is installed in CI environment
+   - Check headless mode configuration
+   - Verify browser driver versions
+
+2. **Timing Issues**
+   - Replace Thread.sleep() with proper waits
+   - Use WaitUntil or Ensure conditions
+   - Add explicit waits for AJAX calls
+
+3. **Environment Issues**
+   - Check base URL configuration
+   - Verify test data availability
+   - Confirm API endpoints are accessible
+
+4. **Framework Issues**
+   - Update Serenity dependencies
+   - Check compatibility between versions
+   - Review screenplay pattern implementation
+\n`;
+            
+            const quickFixes = `## ⚡ QUICK FIX CHECKLIST\n\n`;
+            const checklist = `1. Check if tests run locally
+2. Verify test data setup
+3. Increase timeout values
+4. Add explicit waits for dynamic elements
+5. Check browser compatibility (headless mode)
+6. Review recent code changes
+7. Validate environment configuration
+8. Check network connectivity in CI
+\n`;
+            
+            const analysis = analyzeFailures(failures);
+            
+            return intro + disclaimer + commonIssues + issuesList + quickFixes + checklist + analysis;
+          }
+          
+          try {
+            const failures = extractFailureDetails();
+            const report = generateEnhancedAnalysis(failures);
+            
+            fs.writeFileSync('ai-rca-report.md', report);
+            
+            if (context.payload.pull_request) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: report
+              });
+            }
+            
+            console.log("Pattern-based RCA completed successfully");
+          } catch (error) {
+            const errorMsg = `## 🤖 RCA FAILED\n\nError: ${error.message}\n\nPlease check workflow logs for details.`;
+            fs.writeFileSync('ai-rca-report.md', errorMsg);
+            console.log("RCA failed:", error.message);
+          }
+
+    - name: Upload AI RCA Report
+      if: steps.test-result.outputs.test_failed == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ai-rca-report-free
+        path: ai-rca-report.md
+        retention-days: 30
+
+    - name: Display RCA Summary
+      if: steps.test-result.outputs.test_failed == 'true'
+      run: |
+        echo "## 📊 TEST FAILURE ANALYSIS" >> $GITHUB_STEP_SUMMARY
+        echo "Check the AI RCA Report artifact for detailed solutions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Quick Recommendations:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the uploaded test results" >> $GITHUB_STEP_SUMMARY
+        echo "2. Check failsafe-reports for detailed error messages" >> $GITHUB_STEP_SUMMARY
+        echo "3. Download the AI RCA report for pattern-based solutions" >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail Build on Test Failures
+      if: steps.test-result.outputs.test_failed == 'true' && github.event_name != 'pull_request'
+      run: |
+        echo "❌ Tests failed. Check AI RCA report for solutions."
+        exit 1
