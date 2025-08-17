@@ -10,15 +10,15 @@
     <name>Sample Serenity BDD project using JUnit 5 and Serenity Screenplay</name>
 
     <properties>
-        <serenity.version>3.9.5</serenity.version> <!-- Updated -->
-        <junit5.version>5.10.0</junit5.version> <!-- Updated -->
+        <serenity.version>3.9.4</serenity.version> <!-- Changed from 3.9.5 -->
+        <junit5.version>5.10.0</junit5.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <encoding>UTF-8</encoding>
         <tags></tags>
         <parallel.tests>4</parallel.tests>
         <webdriver.base.url></webdriver.base.url>
-        <maven.compiler.source>11</maven.compiler.source> <!-- Updated -->
-        <maven.compiler.target>11</maven.compiler.target> <!-- Updated -->
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
     </properties>
     
     <dependencies>
@@ -55,7 +55,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.11</version> <!-- Updated -->
+            <version>1.4.11</version>
         </dependency>
         <!-- JUNIT 5 DEPENDENCY-->
         <dependency>
@@ -73,7 +73,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.24.2</version> <!-- Updated -->
+            <version>3.24.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -83,14 +83,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version> <!-- Updated -->
+                <version>3.1.2</version>
                 <configuration>
                     <skip>true</skip>
                 </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.1.2</version> <!-- Updated -->
+                <version>3.1.2</version>
                 <configuration>
                     <includes>
                         <include>**/*Test.java</include>
@@ -101,7 +101,6 @@
                     <systemPropertyVariables>
                         <webdriver.base.url>${webdriver.base.url}</webdriver.base.url>
                         <junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
-                        <!-- Added for GitHub Actions compatibility -->
                         <headless.mode>true</headless.mode>
                     </systemPropertyVariables>
                     <parallel>classes</parallel>
@@ -120,16 +119,16 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version> <!-- Updated -->
+                <version>3.11.0</version>
                 <configuration>
-                    <source>11</source> <!-- Updated from 8 -->
-                    <target>11</target> <!-- Updated from 8 -->
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>net.serenity-bdd.maven.plugins</groupId>
                 <artifactId>serenity-maven-plugin</artifactId>
-                <version>${serenity.version}</version>
+                <version>${serenity.version}</version> <!-- Updated to 3.9.4 -->
                 <configuration>
                     <tags>${tags}</tags>
                 </configuration>
