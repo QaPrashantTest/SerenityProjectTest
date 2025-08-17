@@ -2,10 +2,10 @@ name: Serenity BDD Tests with Free AI RCA
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]  # Add both common branch names
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main, master ]
+  workflow_dispatch:  # This enables manual triggering
 
 jobs:
   test:
