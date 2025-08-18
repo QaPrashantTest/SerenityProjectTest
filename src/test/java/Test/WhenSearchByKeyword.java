@@ -113,7 +113,7 @@ class WhenSearchByKeyword {
     void elementNotInteractableExceptionTest() {
         driver.get("https://duckduckgo.com/");
         // The search input is visible, but let's try to interact with a hidden element
-        WebElement hiddenElement = ((JavascriptExecutor) driver).executeScript("return document.getElementById('search_form_input_homepage');");
+        WebElement hiddenElement = (WebElement) ((JavascriptExecutor) driver).executeScript("return document.getElementById('search_form_input_homepage');");
         ((JavascriptExecutor) driver).executeScript("arguments[0].style.display = 'none';", hiddenElement);
         driver.findElement(By.id("search_form_input_homepage")).sendKeys("hidden");
     }
