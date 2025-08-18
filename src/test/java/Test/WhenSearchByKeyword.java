@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.openqa.selenium.WebDriver;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(SerenityJUnit5Extension.class)
@@ -28,22 +31,34 @@ class WhenSearchByKeyword {
 
     }
 
-    //my code
+    // 5 new failing tests to validate RCA
+
     @Test
-    public void test(){
-        System.out.println("Test method 1");
+    void nullPointerExceptionTest() {
+        String str = null;
+        str.length();
     }
+
     @Test
-    public void test2(){
-        System.out.println("Test method 2");
+    void arithmeticExceptionTest() {
+        int i = 1 / 0;
     }
+
     @Test
-    public void test3(){
-        System.out.println("Test method 3");
+    void indexOutOfBoundsTest() {
+        List<String> list = new ArrayList<>();
+        list.get(0);
     }
+
     @Test
-    public void test4(){
-        System.out.println("Test method 4");
+    void classCastExceptionTest() {
+        Object x = Integer.valueOf(0);
+        System.out.println((String) x);
+    }
+
+    @Test
+    void numberFormatExceptionTest() {
+        Integer.parseInt("not a number");
     }
 
 }
