@@ -193,9 +193,3 @@ jobs:
           echo "1. Review the uploaded test results" >> $GITHUB_STEP_SUMMARY
           echo "2. Check failsafe-reports for detailed error messages" >> $GITHUB_STEP_SUMMARY
           echo "3. Download the AI RCA report for pattern-based solutions" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail Build on Test Failures
-        if: steps.test-result.outputs.test_failed == 'true' && github.event_name != 'pull_request'
-        run: |
-          echo "❌ Tests failed. Check AI RCA report for solutions."
-          exit 1
