@@ -59,14 +59,22 @@ jobs:
       - name: Check Test Results
         id: test-result
         run: |
+          echo "Listing contents of target directory..."
+          ls -laR target
+          echo "----------------------------------------"
           if [ -d "target/failsafe-reports" ]; then
+            echo "Failsafe reports directory found. Searching for failures..."
             FAILURES=$(find target/failsafe-reports -name "*.xml" -exec grep -l "failure\|error" {} \; 2>/dev/null | wc -l)
+            echo "Number of failures found: $FAILURES"
             if [ "$FAILURES" -gt 0 ]; then
+              echo "Test failures detected. Setting test_failed=true"
               echo "test_failed=true" >> $GITHUB_OUTPUT
             else
+              echo "No test failures detected. Setting test_failed=false"
               echo "test_failed=false" >> $GITHUB_OUTPUT
             fi
           else
+            echo "Failsafe reports directory not found. Setting test_failed=false"
             echo "test_failed=false" >> $GITHUB_OUTPUT
           fi
 
