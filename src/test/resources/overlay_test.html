@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Overlay Test</title>
+    <style>
+        #overlay {
+            position: fixed;
+            display: none;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 2;
+            cursor: pointer;
+        }
+        #clickable-button {
+            padding: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h2>UI Overlay Test Page</h2>
+<p>This button will be obscured by an overlay after a short delay.</p>
+
+<button id="clickable-button">Click Me!</button>
+
+<div id="overlay"></div>
+
+<script>
+    setTimeout(function() {
+        var overlay = document.getElementById('overlay');
+        overlay.style.display = 'block';
+    }, 1000); // Overlay appears after 1 second
+</script>
+
+</body>
+</html>
